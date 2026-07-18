@@ -11,35 +11,35 @@ The study leverages retinal Optical Coherence Tomography (OCT) measurements, alo
 ```
 .
 ├── Data Cleaning/
-│   ├── create_data.ipynb                          # UK Biobank field code processing and dataset creation
-│   ├── data_preprocessing.ipynb                   # Data preprocessing (downsampling, age-matching, imputation)
-│   └── data_preprocessing_with_deprecated.ipynb   # Legacy preprocessing script
-├── XGBoost/
-│   ├── main.ipynb                # Main training script (XGBoost across 5 datasets x 5 splits)
-│   ├── functions.py              # Core helper functions for classification and evaluation
-│   ├── functions_cox.py          # Survival analysis helper functions (Cox PH, Nelson-Aalen)
-│   ├── ad_cox.ipynb              # Survival analysis script (Cox & Nelson-Aalen)
-│   ├── create_graphs.ipynb       # Graph/figure generation
-│   ├── get_roc_curves.ipynb      # ROC curve generation
-│   └── main deprecated.ipynb    # Legacy training script
-├── requirements.txt              # Conda environment specification
+│   ├── create_data.ipynb          # UK Biobank field-code processing and dataset creation
+│   └── data_preprocessing.ipynb   # Preprocessing (missingness matching, age matching, imputation)
+├── Fix Imbalance/
+│   ├── main.ipynb                 # Main training script (XGBoost across 10 datasets x 5 folds)
+│   ├── functions.py               # Core helper functions for classification and evaluation
+│   ├── functions_cox.py           # Survival analysis helper functions (Cox PH, Nelson-Aalen)
+│   ├── ad_cox.ipynb               # Survival analysis notebook (Cox & Nelson-Aalen)
+│   ├── create_graphs.ipynb        # Graph/figure generation
+│   ├── get_roc_curves.ipynb       # ROC curve generation
+│   └── make_fig2_histogram.py     # Cohort histogram figure
+├── requirements.txt               # Python dependencies (pip)
 └── README.md
 ```
 
 ## Pipeline
 
 ### 1. Data Creation (`Data Cleaning/create_data.ipynb`)
-Processes raw UK Biobank data by mapping demographic and numerical field codes to human-readable labels. Handles OCT measurements from multiple instances and eyes (left/right, instance 0/1).
+Processes raw UK Biobank data by mapping demographic and numerical field codes to human-readable labels. Handles OCT measurements from multiple instances and eyes (left/right, instance 0/1), and writes the assembled table to `./results/df.csv`.
 
 ### 2. Data Preprocessing (`Data Cleaning/data_preprocessing.ipynb`)
-Designed to be executed **5 times** with consecutive seed values to produce 5 distinct dataset variants for robustness analysis. Includes:
-- Random downsampling of healthy records (~90%) to reduce class imbalance
-- Age-matched cohort construction
-- KNN imputation for missing values
-- Random Cohort Selection (RCS) imputation as an alternative strategy
+Designed to be executed **10 times** with consecutive seed values (`SEED = 1..10`) to produce 10 distinct dataset variants for robustness analysis. It builds:
+- **Missingness-aware matching (missing-matched):** healthy controls are matched to each AD/dementia case by their pattern of missing features. This is the primary cohort used in the paper, produced alongside an **age-matched** version.
+- Each cohort is written in three versions:
+  - **unimputed** — missing values kept (XGBoost handles them natively);
+  - **KNN-imputed** — custom cosine-distance nearest-neighbour imputation;
+  - **RCS-imputed** — Random Case Sampling: each missing value is filled with a randomly drawn observed value from a balanced reference pool.
 
-### 3. XGBoost Classification (`XGBoost/main.ipynb`)
-Main execution script that automates model training and evaluation across 5 datasets and 5 train-test splits (25 total runs). For each configuration, it trains:
+### 3. XGBoost Classification (`Fix Imbalance/main.ipynb`)
+Main execution notebook that automates model training and evaluation across 10 datasets with 5-fold cross-validation (50 total runs). For each configuration, it trains:
 - **Weighted XGBoost** (with balanced class weights)
 - **Unweighted XGBoost** (baseline)
 
@@ -51,7 +51,7 @@ Supports both binary (AD vs. Healthy, Dementia vs. Healthy) and multiclass (Heal
 - Custom cluster-based undersampling (KMeans with majority voting for categorical features)
 - SMOTE-NC upsampling with TomekLinks
 
-### 4. Survival Analysis (`XGBoost/ad_cox.ipynb`)
+### 4. Survival Analysis (`Fix Imbalance/ad_cox.ipynb`)
 Performs survival analysis using:
 - **Cox Proportional Hazards models** to evaluate feature effects on survival time with hazard ratios and statistical significance
 - **Nelson-Aalen cumulative hazard estimation** with risk tables and stratified plots
@@ -66,14 +66,16 @@ Performs survival analysis using:
 ## Requirements
 
 - Python 3.10+
-- Conda (for environment setup)
 
 ### Setup
 
 ```bash
-conda create --name retinal-ad --file requirements.txt
-conda activate retinal-ad
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 ```
+
+Figures embed **Arial** as a Type-42 (TrueType) font. If Arial is not installed, matplotlib falls back to another sans-serif face (Liberation Sans / Nimbus Sans / DejaVu Sans). See the header of `requirements.txt` for how to install the Microsoft core fonts.
 
 ### Key Dependencies
 
@@ -92,19 +94,19 @@ conda activate retinal-ad
    Run Data Cleaning/create_data.ipynb
    ```
 
-2. **Preprocess (run 5 times with SEED = 1..5):**
+2. **Preprocess (run 10 times with SEED = 1..10):**
    ```
    Run Data Cleaning/data_preprocessing.ipynb
    ```
 
 3. **Train and evaluate models:**
    ```
-   Run XGBoost/main.ipynb
+   Run Fix Imbalance/main.ipynb
    ```
 
 4. **Run survival analysis:**
    ```
-   Run XGBoost/ad_cox.ipynb
+   Run Fix Imbalance/ad_cox.ipynb
    ```
 
 ## Data Availability
