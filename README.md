@@ -56,8 +56,6 @@ Two binary tasks are run: **AD vs. Healthy** and **Dementia vs. Healthy**. Each 
 
 **Outputs:** per-fold metrics and ROC curves (CSV), feature importance scores (CSV), and SHAP beeswarm plots.
 
-> **Note:** `functions.py` also contains legacy helpers for cluster-based undersampling, SMOTE-NC/TomekLinks upsampling, and a multiclass (Healthy/Dementia/AD) variant. These are disabled by default (`downsample=False`, `upsample=False`) and are **not** used for the results reported in the paper.
-
 ### 4. Survival Analysis (`Fix Imbalance/ad_cox.ipynb`)
 Performs survival analysis using:
 - **Cox Proportional Hazards models** to evaluate feature effects on survival time with hazard ratios and statistical significance
@@ -88,7 +86,7 @@ Figures embed **Arial** as a Type-42 (TrueType) font. If Arial is not installed,
 
 - xgboost
 - scikit-learn
-- imbalanced-learn (imported by the legacy resampling helpers)
+- imbalanced-learn
 - lifelines (Cox PH, Nelson-Aalen, Kaplan-Meier)
 - shap
 - pandas, numpy, scipy
