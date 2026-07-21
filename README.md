@@ -30,6 +30,8 @@ The study leverages retinal Optical Coherence Tomography (OCT) measurements, alo
 ### 1. Data Creation (`Data Cleaning/create_data.ipynb`)
 Processes raw UK Biobank data by mapping demographic and numerical field codes to human-readable labels. Handles OCT measurements from multiple instances and eyes (left/right, instance 0/1), and writes the assembled table to `./results/df.csv`.
 
+> This notebook imports a local `fields` module holding the UK Biobank field-code and ICD-10 definitions. That mapping is distributed as supplementary material with the paper rather than in this repository.
+
 ### 2. Data Preprocessing (`Data Cleaning/data_preprocessing.ipynb`)
 Designed to be executed **10 times** with consecutive seed values (`SEED = 1..10`) to produce 10 distinct dataset variants for robustness analysis. It builds:
 - **Missingness-aware matching (missing-matched):** healthy controls are matched to each AD/dementia case by their pattern of missing features. This is the primary cohort used in the paper, produced alongside an **age-matched** version.
@@ -39,17 +41,22 @@ Designed to be executed **10 times** with consecutive seed values (`SEED = 1..10
   - **RCS-imputed** — Random Case Sampling: each missing value is filled with a randomly drawn observed value from a balanced reference pool.
 
 ### 3. XGBoost Classification (`Fix Imbalance/main.ipynb`)
-Main execution notebook that automates model training and evaluation across 10 datasets with 5-fold cross-validation (50 total runs). For each configuration, it trains:
-- **Weighted XGBoost** (with balanced class weights)
+Main execution notebook that automates model training and evaluation across the 10 dataset variants with 5-fold cross-validation (50 runs per configuration). For each configuration it trains:
+- **Weighted XGBoost** (balanced class weights)
 - **Unweighted XGBoost** (baseline)
 
-Supports both binary (AD vs. Healthy, Dementia vs. Healthy) and multiclass (Healthy, Dementia, AD) classification tasks.
+Class imbalance is addressed by **balanced sample weighting only** — no resampling is applied. Imbalance is instead controlled upstream, by the missingness-aware and age-matched cohort construction in the preprocessing step.
+
+Two binary tasks are run: **AD vs. Healthy** and **Dementia vs. Healthy**. Each is evaluated over the full grid of:
+- **Cohorts:** missing-matched, age-matched missing-matched
+- **Imputation:** unimputed / KNN / RCS
+- **Feature sets:** the full feature set and a reduced "core" set
 
 **Evaluation metrics:** ROC-AUC, AUPRC, MCC, F1 Score, Accuracy, Sensitivity, Specificity
 
-**Sampling strategies:**
-- Custom cluster-based undersampling (KMeans with majority voting for categorical features)
-- SMOTE-NC upsampling with TomekLinks
+**Outputs:** per-fold metrics and ROC curves (CSV), feature importance scores (CSV), and SHAP beeswarm plots.
+
+> **Note:** `functions.py` also contains legacy helpers for cluster-based undersampling, SMOTE-NC/TomekLinks upsampling, and a multiclass (Healthy/Dementia/AD) variant. These are disabled by default (`downsample=False`, `upsample=False`) and are **not** used for the results reported in the paper.
 
 ### 4. Survival Analysis (`Fix Imbalance/ad_cox.ipynb`)
 Performs survival analysis using:
@@ -81,11 +88,12 @@ Figures embed **Arial** as a Type-42 (TrueType) font. If Arial is not installed,
 
 - xgboost
 - scikit-learn
-- imbalanced-learn (SMOTE-NC, TomekLinks)
+- imbalanced-learn (imported by the legacy resampling helpers)
 - lifelines (Cox PH, Nelson-Aalen, Kaplan-Meier)
 - shap
 - pandas, numpy, scipy
-- matplotlib, seaborn, plotly
+- matplotlib, seaborn
+- tqdm
 
 ## Usage
 
