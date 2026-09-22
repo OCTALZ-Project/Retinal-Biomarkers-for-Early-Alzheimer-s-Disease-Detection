@@ -29,10 +29,8 @@ from sklearn.model_selection import (
 from sklearn.utils.class_weight import compute_sample_weight
 from xgboost import XGBClassifier
 
-# --- Monkey-patch: fix shap <-> xgboost version incompatibility ---
-# Newer XGBoost stores base_score as '[0.294]' (bracket-wrapped) in its
-# UBJSON binary format, but older shap calls float() on it directly.
-# This patch intercepts the decoded UBJSON to strip brackets.
+# Newer XGBoost stores base_score bracket-wrapped ("[0.294]"); shap calls
+# float() on it directly and crashes, so patch shap's decoder to strip it.
 _orig_decode_ubjson = shap.explainers._tree.decode_ubjson_buffer
 
 
@@ -48,22 +46,13 @@ def _patched_decode_ubjson(fd):
 
 
 shap.explainers._tree.decode_ubjson_buffer = _patched_decode_ubjson
-# --- End monkey-patch ---
 import os
 
 from matplotlib import font_manager
 
 
 def is_latex_available() -> bool:
-    """True only if a LaTeX toolchain matplotlib's usetex can actually use is present.
-
-    Checks both that `latex` runs AND that the scalable Computer Modern font
-    packages (type1cm + type1ec, the latter shipped by `cm-super`) are
-    installed. Without type1ec/cm-super, usetex fails on every label with
-    "No pages of output" / cannot process 'lp'. If cm-super is missing, install
-    it (Debian/Ubuntu: `sudo apt-get install cm-super`; TeX Live: `tlmgr install
-    cm-super`) and usetex turns on automatically.
-    """
+    """Whether a working LaTeX + cm-super/type1cm toolchain is installed for matplotlib's usetex."""
     try:
         subprocess.run(["latex", "--version"], capture_output=True, check=True)
     except (subprocess.SubprocessError, FileNotFoundError):
@@ -94,10 +83,8 @@ plt.rcParams["axes.labelsize"] = (
 plt.rcParams["axes.labelweight"] = "normal"
 plt.rcParams["xtick.labelsize"] = 18  # larger tick labels for readability
 plt.rcParams["ytick.labelsize"] = 18
-# plt.rcParams["text.usetex"] = is_latex_available()  # LaTeX text iff a *working* usetex toolchain (incl. cm-super/type1ec) is present; else matplotlib mathtext. See is_latex_available().
 
-# --- Publication figure style (Springer/GeroScience) ---
-
+# Publication figure style: Type-42 embedded fonts, sans-serif, no LaTeX (journal requirement).
 plt.rcParams.update(
     {
         "text.usetex": False,
@@ -105,9 +92,7 @@ plt.rcParams.update(
         "ps.fonttype": 42,
         "svg.fonttype": "none",
         "font.family": "sans-serif",
-        # Arial first; the rest are Arial-metric / sans-serif fallbacks so the
-        # figures stay compliant even if mscorefonts (Arial) is not installed.
-        # See requirements.txt for the Arial install command.
+        # Arial first, then Arial-metric fallbacks (see requirements.txt for the install command).
         "font.sans-serif": [
             "Arial",
             "Liberation Sans",
@@ -126,7 +111,7 @@ height = width / 1.618
 plt.rcParams["figure.figsize"] = (width, height)
 
 
-# --- Pinned waterfall selections used in the manuscript figures ---
+# Pinned waterfall selections used in the manuscript figures.
 PINNED_WATERFALLS = {
     ("knn_age_matched_mm - AD vs Healthy", 0, 4): {
         "Correctly Classified as AD": [169],  # Fig9a  (f(x)=-1.693)
@@ -1259,11 +1244,8 @@ def visualize_combined_results(
                     output_path
                     + f"{'final/' if isfinal else ''}feature_importances/{name}_shap_beeplot.pdf",
                     bbox_inches="tight",
-                    # Springer print-safety: opaque white background + higher raster resolution.
-                    # SHAP's alpha-blended beeswarm forces matplotlib to rasterize this layer; without
-                    # these kwargs it saves a ~100 dpi raster with a transparent soft-mask (bad for CMYK).
-                    # If a soft-mask still remains, flatten the saved PDF afterwards with:
-                    #   gs -o out.pdf -sDEVICE=pdfwrite -dPDFSETTINGS=/prepress -dCompatibilityLevel=1.3 in.pdf
+                    # opaque background + 300dpi: SHAP's beeswarm otherwise rasterizes with a
+                    # transparent soft-mask, which breaks CMYK print.
                     dpi=300,
                     facecolor="white",
                     transparent=False,

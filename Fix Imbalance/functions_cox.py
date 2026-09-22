@@ -15,9 +15,8 @@ from sklearn.preprocessing import StandardScaler
 
 sns.set_style("whitegrid")
 
-# --- Publication figure style (Springer/GeroScience): sans-serif lettering
-# (Arial/Helvetica) + TrueType/Type-42 embedding (matplotlib's default is
-# Type-3, which the journal disallows). Set after sns.set_style so it wins. ---
+# Publication figure style: sans-serif + Type-42 embedded fonts (matplotlib defaults to
+# Type-3, which the journal disallows). Set after sns.set_style so it wins.
 plt.rcParams.update(
     {
         "text.usetex": False,
@@ -25,8 +24,7 @@ plt.rcParams.update(
         "ps.fonttype": 42,
         "svg.fonttype": "none",
         "font.family": "sans-serif",
-        # Arial first; the rest are Arial-metric / sans-serif fallbacks (see
-        # requirements.txt for the Arial/mscorefonts install command).
+        # Arial first, then Arial-metric fallbacks (see requirements.txt for the install command).
         "font.sans-serif": [
             "Arial",
             "Liberation Sans",
